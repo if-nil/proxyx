@@ -1,4 +1,4 @@
-package main
+package mysql
 
 import (
 	"log"
@@ -36,7 +36,7 @@ func NewPluginManager() *PluginManager {
 // Register 注册插件
 func (pm *PluginManager) Register(p Plugin) {
 	pm.plugins = append(pm.plugins, p)
-	log.Printf("[PluginManager] Registered plugin: %s", p.Name())
+	log.Printf("[MySQL PluginManager] Registered plugin: %s", p.Name())
 }
 
 // OnQuery 触发所有插件的 OnQuery
@@ -57,7 +57,7 @@ func (pm *PluginManager) OnQueryComplete(event *QueryEvent, result *mysql.Result
 func (pm *PluginManager) Close() error {
 	for _, p := range pm.plugins {
 		if err := p.Close(); err != nil {
-			log.Printf("[PluginManager] Error closing plugin %s: %v", p.Name(), err)
+			log.Printf("[MySQL PluginManager] Error closing plugin %s: %v", p.Name(), err)
 		}
 	}
 	return nil

@@ -1,4 +1,4 @@
-package main
+package mysql
 
 import (
 	"context"
@@ -103,3 +103,4 @@ func (p *RedisPlugin) OnQueryComplete(event *QueryEvent, result *mysql.Result, e
 func (p *RedisPlugin) Close() error {
 	return p.client.Close()
 }
+

@@ -1,10 +1,10 @@
-package main
+package mysql
 
 import "github.com/go-mysql-org/go-mysql/mysql"
 
 // FilterPlugin 过滤器插件 - 只处理符合条件的SQL
 type FilterPlugin struct {
-	inner     Plugin                       // 内部插件
+	inner     Plugin                      // 内部插件
 	predicate func(event *QueryEvent) bool // 过滤条件
 }
 

@@ -1,4 +1,4 @@
-package main
+package mysql
 
 import (
 	"log"
@@ -19,17 +19,17 @@ func (p *LogPlugin) Name() string {
 }
 
 func (p *LogPlugin) OnQuery(event *QueryEvent) {
-	log.Printf("[SQL] [%s] %s", event.Type, event.Query)
+	log.Printf("[MySQL] [%s] %s", event.Type, event.Query)
 	if len(event.Args) > 0 {
-		log.Printf("[SQL] Args: %v", event.Args)
+		log.Printf("[MySQL] Args: %v", event.Args)
 	}
 }
 
 func (p *LogPlugin) OnQueryComplete(event *QueryEvent, result *mysql.Result, err error) {
 	if err != nil {
-		log.Printf("[SQL] Error: %v (duration: %v)", err, event.Duration)
+		log.Printf("[MySQL] Error: %v (duration: %v)", err, event.Duration)
 	} else {
-		log.Printf("[SQL] Success (duration: %v, rows: %d)", event.Duration, event.RowCount)
+		log.Printf("[MySQL] OK (duration: %v, rows: %d)", event.Duration, event.RowCount)
 	}
 }
 

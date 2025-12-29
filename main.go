@@ -4,8 +4,14 @@ import (
 	"flag"
 	"log"
 	"net"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-mysql-org/go-mysql/server"
+	"github.com/if-nil/proxyx/config"
+	"github.com/if-nil/proxyx/mysql"
+	"github.com/if-nil/proxyx/redisproxy"
 )
 
 func main() {
@@ -14,23 +20,47 @@ func main() {
 	flag.Parse()
 
 	// 加载配置
-	config, err := LoadConfig(*configPath)
+	cfg, err := config.Load(*configPath)
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// 创建插件管理器
-	pluginManager := NewPluginManager()
-
-	// 根据配置注册插件
-	if config.Plugins.Log.Enabled {
-		pluginManager.Register(NewLogPlugin())
+	// 启动 MySQL 代理
+	if cfg.MySQL.Enabled {
+		go startMySQLProxy(cfg)
 	}
 
-	if config.Plugins.Redis.Enabled {
-		redisPlugin, err := NewRedisPlugin(config.Plugins.Redis)
+	// 启动 Redis 代理
+	if cfg.Redis.Enabled {
+		go startRedisProxy(cfg)
+	}
+
+	// 检查是否至少启用了一个代理
+	if !cfg.MySQL.Enabled && !cfg.Redis.Enabled {
+		log.Fatal("No proxy enabled. Please enable at least one proxy in config.")
+	}
+
+	// 等待退出信号
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	<-sigChan
+
+	log.Println("Shutting down...")
+}
+
+func startMySQLProxy(cfg *config.Config) {
+	// 创建MySQL插件管理器
+	pluginManager := mysql.NewPluginManager()
+
+	// 根据配置注册插件
+	if cfg.MySQLPlugins.Log.Enabled {
+		pluginManager.Register(mysql.NewLogPlugin())
+	}
+
+	if cfg.MySQLPlugins.Redis.Enabled {
+		redisPlugin, err := mysql.NewRedisPlugin(cfg.MySQLPlugins.Redis)
 		if err != nil {
-			log.Printf("Failed to connect to Redis: %v", err)
+			log.Printf("Failed to connect to Redis for MySQL plugin: %v", err)
 		} else {
 			pluginManager.Register(redisPlugin)
 		}
@@ -38,34 +68,34 @@ func main() {
 
 	defer pluginManager.Close()
 
-	listener, err := net.Listen("tcp", config.Proxy.Addr)
+	listener, err := net.Listen("tcp", cfg.MySQL.Addr)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("MySQL Proxy listen error: %v", err)
 	}
 	defer listener.Close()
 
-	log.Printf("MySQL Proxy listening on %s, forwarding to %s", config.Proxy.Addr, config.MySQL.Addr)
+	log.Printf("MySQL Proxy listening on %s, forwarding to %s", cfg.MySQL.Addr, cfg.MySQL.Target)
 
 	for {
 		clientConn, err := listener.Accept()
 		if err != nil {
-			log.Printf("Accept error: %v", err)
+			log.Printf("MySQL Proxy accept error: %v", err)
 			continue
 		}
 
-		go handleConnection(clientConn, config, pluginManager)
+		go handleMySQLConnection(clientConn, cfg, pluginManager)
 	}
 }
 
-func handleConnection(c net.Conn, config *Config, pluginManager *PluginManager) {
+func handleMySQLConnection(c net.Conn, cfg *config.Config, pluginManager *mysql.PluginManager) {
 	defer c.Close()
 
 	// 为每个客户端连接创建一个到真正MySQL的连接
-	handler, err := NewProxyHandler(
-		config.MySQL.Addr,
-		config.MySQL.User,
-		config.MySQL.Password,
-		config.MySQL.Database,
+	handler, err := mysql.NewHandler(
+		cfg.MySQL.Target,
+		cfg.MySQL.User,
+		cfg.MySQL.Password,
+		cfg.MySQL.Database,
 		pluginManager,
 	)
 	if err != nil {
@@ -75,17 +105,47 @@ func handleConnection(c net.Conn, config *Config, pluginManager *PluginManager) 
 	defer handler.Close()
 
 	// 创建一个假的MySQL服务器连接来处理客户端请求
-	conn, err := server.NewConn(c, config.MySQL.User, config.MySQL.Password, handler)
+	conn, err := server.NewConn(c, cfg.MySQL.User, cfg.MySQL.Password, handler)
 	if err != nil {
-		log.Printf("Failed to create server conn: %v", err)
+		log.Printf("Failed to create MySQL server conn: %v", err)
 		return
 	}
 
 	// 持续处理客户端命令
 	for {
 		if err := conn.HandleCommand(); err != nil {
-			log.Printf("Connection closed: %v", err)
+			log.Printf("MySQL connection closed: %v", err)
 			return
 		}
 	}
+}
+
+func startRedisProxy(cfg *config.Config) {
+	// 创建Redis插件管理器
+	pluginManager := redisproxy.NewPluginManager()
+
+	// 根据配置注册插件
+	if cfg.RedisPlugins.Log.Enabled {
+		pluginManager.Register(redisproxy.NewLogPlugin())
+	}
+
+	if cfg.RedisPlugins.Redis.Enabled {
+		redisPlugin, err := redisproxy.NewRedisPlugin(cfg.RedisPlugins.Redis)
+		if err != nil {
+			log.Printf("Failed to connect to Redis for Redis proxy plugin: %v", err)
+		} else {
+			pluginManager.Register(redisPlugin)
+		}
+	}
+
+	defer pluginManager.Close()
+
+	// 启动Redis代理
+	err := redisproxy.StartProxy(cfg.Redis.Addr, cfg.Redis.Target, pluginManager)
+	if err != nil {
+		log.Fatalf("Redis Proxy error: %v", err)
+	}
+
+	// 保持goroutine运行
+	select {}
 }
