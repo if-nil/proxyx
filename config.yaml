@@ -1,0 +1,30 @@
+# ProxyX 配置文件
+
+# 代理服务器配置
+proxy:
+  addr: "127.0.0.1:4000"  # 代理监听地址
+
+# MySQL 连接配置
+mysql:
+  addr: "127.0.0.1:3306"  # MySQL 服务器地址
+  user: "root"            # 用户名
+  password: "123456"      # 密码
+  database: ""            # 默认数据库（可为空）
+
+# 插件配置
+plugins:
+  # 日志插件 - 打印SQL到控制台
+  log:
+    enabled: true
+
+  # Redis插件 - 推送SQL到Redis
+  redis:
+    enabled: false                 # 是否启用
+    addr: "127.0.0.1:6379"        # Redis地址
+    password: ""                   # Redis密码
+    db: 0                          # Redis数据库
+    channel: "mysql:queries"       # 发布频道（PUBLISH模式）
+    list_key: "mysql:query_list"   # 列表键名（LPUSH模式）
+    max_list_len: 1000             # 列表最大长度（0表示不限制）
+    use_list: true                 # true: 使用LPUSH, false: 使用PUBLISH
+

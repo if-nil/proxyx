@@ -11,13 +11,14 @@ import (
 
 // RedisPluginConfig Redis插件配置
 type RedisPluginConfig struct {
-	Addr       string // Redis地址，如 "127.0.0.1:6379"
-	Password   string // Redis密码
-	DB         int    // Redis数据库
-	Channel    string // 发布的频道名
-	ListKey    string // 列表键名（用于LPUSH）
-	MaxListLen int64  // 列表最大长度（0表示不限制）
-	UseList    bool   // true: 使用LPUSH, false: 使用PUBLISH
+	Enabled    bool   `yaml:"enabled"`      // 是否启用
+	Addr       string `yaml:"addr"`         // Redis地址，如 "127.0.0.1:6379"
+	Password   string `yaml:"password"`     // Redis密码
+	DB         int    `yaml:"db"`           // Redis数据库
+	Channel    string `yaml:"channel"`      // 发布的频道名
+	ListKey    string `yaml:"list_key"`     // 列表键名（用于LPUSH）
+	MaxListLen int64  `yaml:"max_list_len"` // 列表最大长度（0表示不限制）
+	UseList    bool   `yaml:"use_list"`     // true: 使用LPUSH, false: 使用PUBLISH
 }
 
 // RedisPlugin Redis插件 - 推送SQL到Redis
@@ -102,4 +103,3 @@ func (p *RedisPlugin) OnQueryComplete(event *QueryEvent, result *mysql.Result, e
 func (p *RedisPlugin) Close() error {
 	return p.client.Close()
 }
-
