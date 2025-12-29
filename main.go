@@ -12,6 +12,7 @@ import (
 	"github.com/if-nil/proxyx/config"
 	"github.com/if-nil/proxyx/mysql"
 	"github.com/if-nil/proxyx/redisproxy"
+	"github.com/if-nil/proxyx/web"
 )
 
 func main() {
@@ -35,9 +36,14 @@ func main() {
 		go startRedisProxy(cfg)
 	}
 
+	// 启动 Web 服务
+	if cfg.Web.Enabled {
+		go startWebServer(cfg)
+	}
+
 	// 检查是否至少启用了一个代理
-	if !cfg.MySQL.Enabled && !cfg.Redis.Enabled {
-		log.Fatal("No proxy enabled. Please enable at least one proxy in config.")
+	if !cfg.MySQL.Enabled && !cfg.Redis.Enabled && !cfg.Web.Enabled {
+		log.Fatal("No service enabled. Please enable at least one service in config.")
 	}
 
 	// 等待退出信号
@@ -148,4 +154,15 @@ func startRedisProxy(cfg *config.Config) {
 
 	// 保持goroutine运行
 	select {}
+}
+
+func startWebServer(cfg *config.Config) {
+	webServer, err := web.NewServer(cfg.Web)
+	if err != nil {
+		log.Fatalf("Failed to create web server: %v", err)
+	}
+
+	if err := webServer.Start(); err != nil {
+		log.Fatalf("Web server error: %v", err)
+	}
 }

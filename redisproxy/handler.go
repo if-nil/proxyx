@@ -52,6 +52,9 @@ func (h *Handler) HandleConnection(clientConn net.Conn) {
 		}
 
 		// 创建事件
+		if args == nil {
+			args = []string{}
+		}
 		event := &CommandEvent{
 			Command:   command,
 			Args:      args,

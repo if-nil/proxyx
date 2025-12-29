@@ -5,6 +5,7 @@ import (
 
 	"github.com/if-nil/proxyx/mysql"
 	"github.com/if-nil/proxyx/redisproxy"
+	"github.com/if-nil/proxyx/web"
 	"gopkg.in/yaml.v3"
 )
 
@@ -12,6 +13,7 @@ import (
 type Config struct {
 	MySQL        MySQLProxyConfig   `yaml:"mysql_proxy"`
 	Redis        RedisProxyConfig   `yaml:"redis_proxy"`
+	Web          web.Config         `yaml:"web"`
 	MySQLPlugins MySQLPluginsConfig `yaml:"mysql_plugins"`
 	RedisPlugins RedisPluginsConfig `yaml:"redis_plugins"`
 }
@@ -87,6 +89,20 @@ func (c *Config) setDefaults() {
 	}
 	if c.Redis.Target == "" {
 		c.Redis.Target = "127.0.0.1:6379"
+	}
+
+	// Web服务默认值
+	if c.Web.Addr == "" {
+		c.Web.Addr = "127.0.0.1:9080"
+	}
+	if c.Web.RedisAddr == "" {
+		c.Web.RedisAddr = "127.0.0.1:6379"
+	}
+	if c.Web.MySQLChannel == "" {
+		c.Web.MySQLChannel = "mysql:queries"
+	}
+	if c.Web.RedisChannel == "" {
+		c.Web.RedisChannel = "redis:commands"
 	}
 
 	// MySQL插件默认值
